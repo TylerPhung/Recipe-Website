@@ -1,0 +1,22 @@
+* {
+	margin: 0;
+	padding: 0;
+}
+
+.recipe_summary {
+	margin: 8px;
+}
+
+.recipe_summary > div > * {
+	margin: 4px;
+}
+
+span {
+	display: flex;
+}
+
+img {
+	padding-left: 20px;
+	height: 60px;
+	width: 60px;
+}
