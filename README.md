@@ -10,8 +10,10 @@ Up- and down-vote recipes
 
 In the 'front end' directory, React must be installed with:
 
-```npm install npm install react --save
-npm install react-dom --save```
+```
+npm install npm install react --save
+npm install react-dom --save
+```
 
 Also in the 'front end' directory, the client-side can be started with:
 
