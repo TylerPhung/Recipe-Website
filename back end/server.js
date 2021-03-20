@@ -59,6 +59,28 @@ const server = http.createServer((req, res) => {
 		
 		
 		
+		case "/update_recipe":
+			req.on('data', data => {
+				let obj = JSON.parse(data);
+				
+				for(const i in recipes) {
+					let recipe = recipes[i];
+					
+					if(recipe.author === obj.old.author
+					&& recipe.desc === obj.old.desc) {
+						recipes[i] = obj.update;
+						fs.writeFileSync('./recipes.json', JSON.stringify(recipes));
+						
+						break;
+					}
+				}
+				
+				res.end();
+			});
+			break;
+		
+		
+		
 		case "/find_recipes":
 			req.on('data', data => {
 				let obj = JSON.parse(data);
@@ -83,7 +105,41 @@ const server = http.createServer((req, res) => {
 					}
 				}
 				
+				payload.sort((a, b) => b.rating.score - a.rating.score);
+				
 				res.end(JSON.stringify(payload));
+			});
+			break;
+		
+		
+		
+		case "/vote":
+			req.on('data', data => {
+				let obj = JSON.parse(data);
+				
+				for(const i in recipes) {
+					let recipe = recipes[i];
+					
+					if(recipe.name === obj.recipe.name
+					&& recipe.desc === obj.recipe.desc) {
+						if(obj.username in recipe.rating.by) {
+							if(recipe.rating.by[obj.username] !== obj.vote) {
+								recipe.rating.by[obj.username] = obj.vote;
+								recipe.rating.score += 2 * obj.vote;
+							}
+						}
+						else {
+							recipe.rating.by[obj.username] = obj.vote;
+							recipe.rating.score += obj.vote;
+						}
+						
+						break;
+					}
+				}
+				
+				fs.writeFileSync('./recipes.json', JSON.stringify(recipes));
+				
+				res.end();
 			});
 			break;
 		

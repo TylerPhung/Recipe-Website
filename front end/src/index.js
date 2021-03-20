@@ -20,7 +20,7 @@ const mealEnum = {
 class SignIn extends React.Component {
 	render() {
 		return <form>
-			<label id="banner"></label>
+			<label id="banner">{this.props.banner}</label>
 			<br />
 			<label htmlFor="username">Username: </label>
 			<input type="text" id="username" />
@@ -38,9 +38,12 @@ class RecipeSummary extends React.Component {
 		return (
 			<div className="recipe_summary">
 				<h3 onClick={this.props.onClick}>{
-					"\u2605".repeat(this.props.rating)
-					+ "\u2606".repeat(5 - this.props.rating)
-					+ " " + this.props.name
+					this.props.rating.toString()
+					+ (this.props.rating >= 0 ?
+						"\uD83D\uDC4D" :
+						"\uD83D\uDC4E"
+					)
+					+ " - " + this.props.name
 					+ " - " + this.props.author
 				}</h3>
 				<p>{this.props.desc}</p>
@@ -72,27 +75,34 @@ class CreateRecipe extends React.Component {
 	render() {
 		return <form>
 			<label>Name of recipe: </label>
-			<input type="text" id="name" />
+			<input type="text" id="name" value={this.props.name} />
 			<br />
 			<label>Brief description: </label>
-			<input type="text" id="desc" />
+			<input type="text" id="desc" value={this.props.desc} />
 			<br />
 			<label>Meal type:</label>
-			<select id="type">
-				<option value="breakfast">Breakfast</option>
-				<option value="lunch">Lunch</option>
-				<option value="dinner">Dinner</option>
-				<option value="dessert">Dessert</option>
-				<option value="drink">Drink</option>
-			</select>
+			{
+				selectDropDownItem(
+				<select id="type">
+					<option value="breakfast">Breakfast</option>
+					<option value="lunch">Lunch</option>
+					<option value="dinner">Dinner</option>
+					<option value="dessert">Dessert</option>
+					<option value="drink">Drink</option>
+				</select>, this.props.type)
+			}
 			<br />
 			<label>Ingredients: </label>
 			<br />
-			<textarea id="ingredients" cols="50" rows="5"></textarea>
+			<textarea id="ingredients" cols="50" rows="5">
+				{this.props.ingredients}
+			</textarea>
 			<br />
 			<label>Instructions: </label>
 			<br />
-			<textarea id="instructions" cols="50" rows="5"></textarea>
+			<textarea id="instructions" cols="50" rows="5">
+				{this.props.instructions}
+			</textarea>
 		</form>;
 	}
 }
@@ -105,6 +115,7 @@ class Page extends React.Component {
 		this.state = {
 			mode: "view",
 			username: "",
+			banner: "",
 			results: [],
 			focus_recipe: null,
 		};
@@ -115,14 +126,23 @@ class Page extends React.Component {
 			case "sign_in":
 				return <>
 					<button onClick={() => this.set_mode("view")}>Back</button>
-					<SignIn />
+					<SignIn banner={this.state.banner}/>
 					<button onClick={() => this.sign_in()}>Sign in</button>
 					<button onClick={() => this.create_account()}>Create Account</button>
 				</>;
 			case "add":
 				return <>
-					<button onClick={() =>this.set_mode("view")}>Back</button>
-					<CreateRecipe />
+					<button onClick={() => this.set_mode(this.state.focus_recipe ? "results" : "view")}>Back</button>
+					{this.state.focus_recipe !== null ?
+						<CreateRecipe
+							name={this.state.focus_recipe.name}
+							desc={this.state.focus_recipe.desc}
+							type={this.state.focus_recipe.type}
+							ingredients={this.state.focus_recipe.ingredients}
+							instructions={this.state.focus_recipe.instructions}
+						/> :
+						<CreateRecipe />
+					}
 					<button onClick={() => this.publish_recipe()}>Submit</button>
 				</>;
 				
@@ -131,7 +151,7 @@ class Page extends React.Component {
 					<button onClick={() =>this.set_mode("view")}>Back</button>
 					{this.state.results.map((recipe, idx) =>
 						<RecipeSummary
-							rating="5"
+							rating={recipe.rating.score}
 							name={recipe.name}
 							author={recipe.author}
 							desc={recipe.desc}
@@ -145,7 +165,29 @@ class Page extends React.Component {
 			
 			case "show_recipe":
 				return <>
-					<button onClick={() => this.set_mode("results")}>Back</button>
+					<span>
+						<button onClick={() => this.set_mode("results")}>Back</button>
+						{this.state.focus_recipe.author === this.state.username ?
+							<button onClick={() => this.create_recipe(true)}>Edit</button> : null
+						}
+					</span>
+					<span>
+						<h2>{
+							this.state.focus_recipe.rating.score.toString()
+							+ (this.state.focus_recipe.rating.score >= 0 ?
+								"\uD83D\uDC4D" :
+								"\uD83D\uDC4E"
+							)
+							+ "\xa0\xa0"
+						}</h2>
+						{this.state.username !== "" ?
+							<>
+								<button onClick={() => this.rate(1)}>&#128077;</button>
+								<button onClick={() => this.rate(-1)}>&#128078;</button>
+							</>
+							: null
+						}
+					</span>
 					<RecipeListing
 						name={this.state.focus_recipe.name}
 						author={this.state.focus_recipe.author}
@@ -159,9 +201,7 @@ class Page extends React.Component {
 			default: // view
 				return <>
 					<span>
-						{this.state.username !== "" ?
-							<button onClick={() => this.set_mode("add")}>Create recipe</button> : null
-						}
+						<button onClick={() => this.create_recipe()}>Create recipe</button>
 						<button onClick={() => 
 							this.state.username === "" ?
 								this.set_mode("sign_in") :
@@ -299,19 +339,50 @@ class Page extends React.Component {
 		this.setState({username: ""});
 	}
 	
+	create_recipe(isEditing) {
+		if(this.state.username !== "") {
+			this.set_mode("add");
+			
+			if(isEditing !== true) {
+				this.setState({focus_recipe: null});
+			}
+		}
+		else {
+			this.setState({
+				mode: "sign_in",
+				banner: "-- Users must be logged in to create recipes",
+			});
+		}
+	}
+	
 	publish_recipe() {
-		let body = JSON.stringify({
+		let body = {
 			author: this.state.username,
 			name: document.getElementById('name').value,
 			desc: document.getElementById('desc').value,
 			type: document.getElementById('type').value,
 			ingredients: document.getElementById('ingredients').value,
 			instructions: document.getElementById('instructions').value,
-		});
+			rating: {
+				score: 0,
+				by: [],
+			}
+		};
+		
+		// If we are modifying and existing recipe
+		if(this.state.focus_recipe) {
+			body = {
+				old: this.state.focus_recipe,
+				update: body,
+			};
+		}
+		
+		body = JSON.stringify(body);
+		
 		let options = {
 			hostname: "localhost",
 			port: 5000,
-			path: "/recipes",
+			path: this.state.focus_recipe ? "/update_recipe" : "/recipes",
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -404,6 +475,55 @@ class Page extends React.Component {
 			focus_recipe: this.state.results[num],
 		});
 	}
+	
+	rate(vote) {
+		if(this.state.username in this.state.focus_recipe.rating.by) {
+			if(this.state.focus_recipe.rating.by[this.state.username] !== vote){
+				let modified = this.state.focus_recipe;
+				modified.rating.score += 2 * vote;
+				this.setState({focus_recipe: modified});
+				this.state.focus_recipe.rating.by[this.state.username] = vote;
+				
+				this.make_vote(vote);
+			}
+		}
+		else {
+			this.state.focus_recipe.rating.by[this.state.username] = vote;
+			let modified = this.state.focus_recipe;
+			modified.rating.score += vote;
+			this.setState({focus_recipe: modified});
+			
+			this.make_vote(vote);
+		}
+	}
+	
+	make_vote(vote) {
+		let body = JSON.stringify({
+			username: this.state.username,
+			recipe: this.state.focus_recipe,
+			vote: vote,
+		});
+		let options = {
+			hostname: "localhost",
+			port: 5000,
+			path: "/vote",
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"Content-Length": Buffer.byteLength(body)
+			}
+		};
+		
+		
+		
+		http.request(options, res => {
+			res.on('data', () => {});
+			
+			res.on('end',  () => {});
+		})
+		.on("error", console.error)
+		.end(body);
+	}
 }
 
 
@@ -412,3 +532,18 @@ ReactDOM.render(
 	<Page />,
 	document.getElementById('root')
 );
+
+
+
+function selectDropDownItem(selection, value) {
+	for(const i in selection.options) {
+		const option = selection.options[i];
+		
+		if(option.value.toLowerCase() === value) {
+			selection.options[i].selected = true;
+			break;
+		}
+	}
+	
+	return selection;
+}
