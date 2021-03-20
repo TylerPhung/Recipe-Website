@@ -1,8 +1,8 @@
 # Features
-Add and edit recipes
-Log in and sign up
-Search for recipes by ingredients
-Up- and down-vote recipes
+* Add and edit recipes
+* Log in and sign up
+* Search for recipes by ingredients
+* Up- and down-vote recipes
 
 
 
