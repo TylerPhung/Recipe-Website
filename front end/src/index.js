@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
+import http from 'http';
 
 
 
@@ -17,6 +18,8 @@ const mealEnum = {
 class SignIn extends React.Component {
 	render() {
 		return <form>
+			<label id="banner"></label>
+			<br />
 			<label htmlFor="username">Username: </label>
 			<input type="text" id="username" />
 			<br />
@@ -80,23 +83,22 @@ class Page extends React.Component {
 	}
 	
 	render() {
-		switch(this.state.mode){
+		switch(this.state.mode) {
 			case "sign_in":
 				return <>
 					<SignIn />
-					<button name="submit" onClick={() => this.submit_form()}>Submit</button>
+					<button onClick={() => this.submit_form()}>Sign in</button>
+					<button onClick={() => this.create_account()}>Create Account</button>
 				</>;
 			case "add":
 				return <>
 					<CreateRecipe />
-					<button name="submit" onClick={() => this.submit_form()}>Submit</button>
+					<button onClick={() => this.submit_form()}>Submit</button>
 				</>;
-			case "view":
+			default: // view
 				return <>
 					<span>
-						<button onClick={() => this.set_mode("add")}>
-							Create recipe
-						</button>
+						<button onClick={() => this.set_mode("add")}>Create recipe</button>
 						<button onClick={() => 
 							this.state.username === "" ?
 								this.set_mode("sign_in") :
@@ -119,18 +121,58 @@ class Page extends React.Component {
 	}
 	
 	submit_form() {
-		switch(this.state.mode){
+		switch(this.state.mode) {
 			case "sign_in":
-				this.state.username = document.getElementById('username').value;
+				this.setState({username: document.getElementById('username').value});
 				
 				break;
-			case "add":
+			default:
 				break;
 		}
 		
 		
 		
 		this.set_mode("view");
+	}
+	
+	create_account() {
+		let username = document.getElementById('username').value;
+		let password = document.getElementById('password').value;
+		
+		
+		let body = JSON.stringify({
+			username: username,
+			password: password,
+		});
+		let options = {
+			hostname: "localhost",
+			port: 5000,
+			path: "/new_account",
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"Content-Length": Buffer.byteLength(body)
+			}
+		};
+		
+		
+		
+		http.request(options, res => {
+			res.on('data', () => {});
+			
+			res.on('end', () => {
+				if(res.statusCode === 200){
+					this.submit_form();
+				}
+				else {
+					document.getElementById('banner').innerHTML = "-- Username is already taken, try again";
+					document.getElementById('username').value = "";
+					document.getElementById('password').value = "";
+				}
+			});
+		})
+		.on("error", console.error)
+		.end(body);
 	}
 	
 	sign_out() {
